@@ -552,22 +552,31 @@ with st.expander("📋 원시 데이터 테이블 보기"):
         "delay_budget_impact":"지연→예산압력(원)",
         "confidence_avg":"AI신뢰도",
     }
-    show_df = filtered[list(display_cols.keys())].rename(columns=display_cols)
+    # 존재하는 컬럼만 선택
+    valid_cols = {k: v for k, v in display_cols.items() if k in filtered.columns}
+    show_df = filtered[list(valid_cols.keys())].rename(columns=valid_cols)
 
     def color_negative(val):
         if isinstance(val, (int, float)) and val < 0:
             return "color: #FF6B6B; font-weight:bold"
         return ""
 
+    fmt = {}
+    for col in ["PV(원)","EV(원)","AC(원)","지연→예산압력(원)"]:
+        if col in show_df.columns: fmt[col] = "{:,.0f}"
+    for col in ["SV(원)","CV(원)"]:
+        if col in show_df.columns: fmt[col] = "{:+,.0f}"
+    for col in ["SPI","CPI"]:
+        if col in show_df.columns: fmt[col] = "{:.3f}"
+    if "AI신뢰도" in show_df.columns: fmt["AI신뢰도"] = "{:.1%}"
+
+    sv_cv_cols = [c for c in ["SV(원)","CV(원)"] if c in show_df.columns]
+    styled = show_df.style.format(fmt)
+    if sv_cv_cols:
+        styled = styled.map(color_negative, subset=sv_cv_cols)
+
     st.dataframe(
-        show_df.style
-               .map(color_negative, subset=["SV(원)","CV(원)"])
-               .format({
-                   "PV(원)": "{:,.0f}", "EV(원)": "{:,.0f}", "AC(원)": "{:,.0f}",
-                   "SV(원)": "{:+,.0f}", "CV(원)": "{:+,.0f}",
-                   "SPI": "{:.3f}", "CPI": "{:.3f}",
-                   "지연→예산압력(원)": "{:,.0f}", "AI신뢰도": "{:.1%}",
-               }),
+        styled,
         use_container_width=True,
         height=320,
     )
