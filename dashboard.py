@@ -9,8 +9,26 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime
-import tempfile, os
+import tempfile, os, urllib.request
 from pathlib import Path
+
+MODEL_URL  = "https://github.com/hyunsoo1222/architecture-ai-dashboard/releases/download/v1.0/best_pt.zip"
+MODEL_PATH = Path("best.pt")
+
+@st.cache_resource(show_spinner="🔄 AI 모델 다운로드 중... (최초 1회)")
+def load_yolo_model():
+    try:
+        from ultralytics import YOLO
+        import zipfile
+        if not MODEL_PATH.exists():
+            zip_path = Path("best_pt.zip")
+            urllib.request.urlretrieve(MODEL_URL, zip_path)
+            with zipfile.ZipFile(zip_path, "r") as z:
+                z.extractall(".")
+            zip_path.unlink()
+        return YOLO(str(MODEL_PATH))
+    except Exception:
+        return None
 
 # ── 페이지 기본 설정 ──────────────────────────────────────────
 st.set_page_config(
@@ -129,8 +147,6 @@ with st.sidebar:
     # ── 실시간 이미지 분석 ──────────────────────────────────────
     st.markdown("#### 📷 현장 사진 분석")
 
-    model_file = st.file_uploader("YOLOv8 가중치 (.pt)", type=["pt"],
-                                   help="학습된 best.pt 파일을 업로드하세요")
     img_files  = st.file_uploader("현장 사진 업로드", type=["jpg","jpeg","png"],
                                    accept_multiple_files=True)
     location_input = st.text_input("촬영 위치", value="B1-기초",
@@ -138,19 +154,18 @@ with st.sidebar:
     conf_val = st.slider("신뢰도 임계값", 0.1, 0.9, 0.5, 0.05)
 
     run_inference = st.button("🔍 AI 분석 실행", use_container_width=True,
-                               disabled=(model_file is None or not img_files))
+                               disabled=not img_files)
 
-    if run_inference and model_file and img_files:
+    if run_inference and img_files:
         try:
-            from ultralytics import YOLO
             from vision_ai_connector import VisionDBBuilder
             from PIL import Image
 
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pt") as f:
-                f.write(model_file.read())
-                tmp_model = f.name
+            model = load_yolo_model()
+            if model is None:
+                st.error("모델 로드 실패. 잠시 후 다시 시도해주세요.")
+                st.stop()
 
-            model   = YOLO(tmp_model)
             builder = VisionDBBuilder()
 
             progress = st.progress(0, text="분석 중...")
@@ -173,7 +188,6 @@ with st.sidebar:
                 progress.progress((i+1)/len(img_files),
                                    text=f"분석 중... ({i+1}/{len(img_files)})")
 
-            os.unlink(tmp_model)
             new_vision_df = builder.build()
 
             if not new_vision_df.empty:
