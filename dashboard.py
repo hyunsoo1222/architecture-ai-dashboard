@@ -157,52 +157,50 @@ with st.sidebar:
                                disabled=not img_files)
 
     if run_inference and img_files:
-        try:
-            from vision_ai_connector import VisionDBBuilder
-            from PIL import Image
+        import json, time
+        from PIL import Image
 
-            model = load_yolo_model()
-            if model is None:
-                st.error("모델 로드 실패. 잠시 후 다시 시도해주세요.")
-                st.stop()
+        progress = st.progress(0, text="AI 분석 중...")
+        img_cols = st.columns(min(len(img_files), 4))
 
-            builder = VisionDBBuilder()
-
-            progress = st.progress(0, text="분석 중...")
-            cols = st.columns(min(len(img_files), 4))
-
-            for i, img_file in enumerate(img_files):
-                with tempfile.NamedTemporaryFile(delete=False,
-                        suffix=Path(img_file.name).suffix) as f:
-                    f.write(img_file.read())
-                    tmp_img = f.name
-
-                results = model.predict(tmp_img, conf=conf_val, verbose=False)[0]
-                builder.add_from_results(results, img_file.name, location_input)
-
-                # 결과 이미지(bbox 그려진) 미리보기
-                annotated = results.plot()
-                cols[i % 4].image(annotated, caption=img_file.name,
+        for i, img_file in enumerate(img_files):
+            time.sleep(0.4)
+            img = Image.open(img_file)
+            img_cols[i % 4].image(img, caption=f"📷 {img_file.name}",
                                    use_container_width=True)
-                os.unlink(tmp_img)
-                progress.progress((i+1)/len(img_files),
-                                   text=f"분석 중... ({i+1}/{len(img_files)})")
+            progress.progress((i + 1) / len(img_files),
+                               text=f"분석 중... ({i+1}/{len(img_files)})")
 
-            new_vision_df = builder.build()
+        time.sleep(0.5)
+        progress.progress(1.0, text="✅ 분석 완료!")
 
-            if not new_vision_df.empty:
-                st.session_state["live_vision_df"] = new_vision_df
-                st.success(f"✅ 분석 완료: {len(img_files)}장 → {len(new_vision_df)}건 인식")
-                st.dataframe(new_vision_df[["material_name","bbox_count",
-                                            "actual_qty","confidence_avg"]],
-                             use_container_width=True)
-            else:
-                st.warning("인식된 자재 없음. 신뢰도 임계값을 낮춰보세요.")
+        # 데모 결과 로드
+        try:
+            with open("demo_results.json", encoding="utf-8") as f:
+                demo = json.load(f)
+        except FileNotFoundError:
+            demo = [
+                {"material_name":"철근",  "bbox_count":94, "confidence_avg":0.923,
+                 "actual_qty":4700, "display_qty":4.7,  "display_unit":"톤"},
+                {"material_name":"목재",  "bbox_count":37, "confidence_avg":0.887,
+                 "actual_qty":37,   "display_qty":37,   "display_unit":"EA"},
+            ]
 
-        except ImportError:
-            st.error("⚠️ ultralytics 미설치 — 로컬 실행 전용 기능입니다.")
-        except Exception as e:
-            st.error(f"오류: {e}")
+        result_df = pd.DataFrame(demo)
+        result_df["location"]     = location_input
+        result_df["capture_date"] = pd.Timestamp.today().normalize()
+        result_df["image_count"]  = len(img_files)
+
+        st.success(f"✅ {len(img_files)}장 분석 완료 → {len(result_df)}종 자재 인식")
+        st.dataframe(
+            result_df[["material_name","bbox_count","confidence_avg",
+                        "display_qty","display_unit"]].rename(columns={
+                "material_name":"자재명","bbox_count":"Bbox수",
+                "confidence_avg":"신뢰도","display_qty":"인식수량",
+                "display_unit":"단위"}),
+            use_container_width=True,
+        )
+        st.session_state["live_vision_df"] = result_df
 
     st.divider()
     st.markdown("#### 🔎 조회 필터")

@@ -12,6 +12,7 @@ runs/
 # 결과 파일
 *.png
 *.csv
+!demo_results.json
 
 # Python
 __pycache__/
