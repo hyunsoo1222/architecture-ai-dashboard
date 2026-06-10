@@ -53,17 +53,17 @@ C_OK     = "#28A745"
 def compute_evms(vision_override: pd.DataFrame = None) -> pd.DataFrame:
     """vision_override 가 있으면 해당 데이터로 EVMS 재계산"""
     plan_data = {
-        "wbs_code":       ["A-01","A-01","A-02","A-02","B-01","B-01","B-02"],
+        "wbs_code":       ["A-01","A-01","A-02","A-02","B-01","B-01","B-02","B-02"],
         "work_name":      ["기초공사","기초공사","골조공사","골조공사",
-                           "지하1층 골조","지하1층 골조","지상1층 골조"],
-        "material_name":  ["철근","레미콘","철근","레미콘","철골","볼트","철근"],
+                           "지하1층 골조","지하1층 골조","지상1층 골조","지상1층 골조"],
+        "material_name":  ["철근","레미콘","철근","레미콘","철골","볼트","철근","목재"],
         "planned_date":   ["2024-03-01","2024-03-01","2024-04-01","2024-04-01",
-                           "2024-04-15","2024-04-15","2024-05-01"],
-        "planned_qty":    [5000, 120, 8000, 200, 3000, 500, 6000],
-        "unit":           ["kg","m³","kg","m³","kg","EA","kg"],
-        "std_unit_price": [1050, 85000, 1050, 85000, 2200, 800, 1050],
+                           "2024-04-15","2024-04-15","2024-05-01","2024-05-01"],
+        "planned_qty":    [5000, 120, 8000, 200, 3000, 500, 6000, 200],
+        "unit":           ["kg","m³","kg","m³","kg","EA","kg","EA"],
+        "std_unit_price": [1050, 85000, 1050, 85000, 2200, 800, 1050, 3500],
         "location":       ["B1-기초","B1-기초","B1-골조","B1-골조",
-                           "B1-전체","B1-전체","1F-골조"],
+                           "B1-전체","B1-전체","1F-골조","1F-골조"],
     }
     BBOX_TO_QTY = {"철근":50,"레미콘":6,"철골":200,"볼트":10,"목재":1}
     vision_data = {
@@ -78,11 +78,11 @@ def compute_evms(vision_override: pd.DataFrame = None) -> pd.DataFrame:
     }
     cost_data = {
         "price_date":        ["2024-03-01","2024-04-01","2024-04-01","2024-04-15",
-                              "2024-05-01","2024-03-01","2024-04-15"],
-        "material_name":     ["철근","철근","레미콘","철골","철근","레미콘","볼트"],
-        "actual_unit_price": [1080,1100,87000,2350,1090,86000,820],
+                              "2024-05-01","2024-03-01","2024-04-15","2024-05-01"],
+        "material_name":     ["철근","철근","레미콘","철골","철근","레미콘","볼트","목재"],
+        "actual_unit_price": [1080,1100,87000,2350,1090,86000,820,3600],
         "supplier":          ["대한철강","대한철강","삼표레미콘","현대제철",
-                              "동국제강","아세아시멘트","대명볼트"],
+                              "동국제강","아세아시멘트","대명볼트","동화목재"],
     }
 
     plan_df = pd.DataFrame(plan_data)
@@ -90,14 +90,26 @@ def compute_evms(vision_override: pd.DataFrame = None) -> pd.DataFrame:
     plan_df["planned_date"] = pd.to_datetime(plan_df["planned_date"])
     cost_df["price_date"]   = pd.to_datetime(cost_df["price_date"])
 
-    # AI 분석 결과가 있으면 그걸로 대체
+    # AI 분석 결과가 있으면 해당 자재만 교체, 나머지는 기존 샘플 유지
     if vision_override is not None and not vision_override.empty:
-        vision_df = vision_override.copy()
-        if "capture_date" not in vision_df.columns:
-            vision_df["capture_date"] = pd.Timestamp.today().normalize()
-        if "image_count" not in vision_df.columns:
-            vision_df["image_count"] = 1
-        vision_df["capture_date"] = pd.to_datetime(vision_df["capture_date"])
+        live = vision_override.copy()
+        if "capture_date" not in live.columns:
+            live["capture_date"] = pd.Timestamp("2024-05-02")
+        if "image_count" not in live.columns:
+            live["image_count"] = 1
+        live["capture_date"] = pd.to_datetime(live["capture_date"])
+
+        base = pd.DataFrame(vision_data)
+        base["capture_date"] = pd.to_datetime(base["capture_date"])
+        base["actual_qty"]   = base["material_name"].map(BBOX_TO_QTY) * base["bbox_count"]
+
+        # live 자재 목록에 있는 것만 교체
+        live_mats = live["material_name"].unique()
+        base = base[~base["material_name"].isin(live_mats)]
+        vision_df = pd.concat([base, live], ignore_index=True)
+        vision_df["actual_qty"] = vision_df["actual_qty"].fillna(
+            vision_df["material_name"].map(BBOX_TO_QTY) * vision_df["bbox_count"]
+        )
     else:
         vision_df = pd.DataFrame(vision_data)
         vision_df["capture_date"] = pd.to_datetime(vision_df["capture_date"])
