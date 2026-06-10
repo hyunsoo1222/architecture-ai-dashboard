@@ -50,8 +50,8 @@ C_OK     = "#28A745"
 # 데이터 생성 (evms_analysis.py 로직 인라인)
 # ============================================================
 
-@st.cache_data
-def load_evms_data() -> pd.DataFrame:
+def compute_evms(vision_override: pd.DataFrame = None) -> pd.DataFrame:
+    """vision_override 가 있으면 해당 데이터로 EVMS 재계산"""
     plan_data = {
         "wbs_code":       ["A-01","A-01","A-02","A-02","B-01","B-01","B-02"],
         "work_name":      ["기초공사","기초공사","골조공사","골조공사",
@@ -65,7 +65,7 @@ def load_evms_data() -> pd.DataFrame:
         "location":       ["B1-기초","B1-기초","B1-골조","B1-골조",
                            "B1-전체","B1-전체","1F-골조"],
     }
-    BBOX_TO_QTY = {"철근":50,"레미콘":6,"철골":200,"볼트":10}
+    BBOX_TO_QTY = {"철근":50,"레미콘":6,"철골":200,"볼트":10,"목재":1}
     vision_data = {
         "capture_date":   ["2024-03-05","2024-03-05","2024-04-03","2024-04-03",
                            "2024-04-18","2024-04-18","2024-05-02"],
@@ -85,15 +85,25 @@ def load_evms_data() -> pd.DataFrame:
                               "동국제강","아세아시멘트","대명볼트"],
     }
 
-    plan_df   = pd.DataFrame(plan_data)
-    vision_df = pd.DataFrame(vision_data)
-    cost_df   = pd.DataFrame(cost_data)
-    plan_df["planned_date"]   = pd.to_datetime(plan_df["planned_date"])
-    vision_df["capture_date"] = pd.to_datetime(vision_df["capture_date"])
-    cost_df["price_date"]     = pd.to_datetime(cost_df["price_date"])
-    vision_df["actual_qty"]   = (
-        vision_df["material_name"].map(BBOX_TO_QTY) * vision_df["bbox_count"]
-    )
+    plan_df = pd.DataFrame(plan_data)
+    cost_df = pd.DataFrame(cost_data)
+    plan_df["planned_date"] = pd.to_datetime(plan_df["planned_date"])
+    cost_df["price_date"]   = pd.to_datetime(cost_df["price_date"])
+
+    # AI 분석 결과가 있으면 그걸로 대체
+    if vision_override is not None and not vision_override.empty:
+        vision_df = vision_override.copy()
+        if "capture_date" not in vision_df.columns:
+            vision_df["capture_date"] = pd.Timestamp.today().normalize()
+        if "image_count" not in vision_df.columns:
+            vision_df["image_count"] = 1
+        vision_df["capture_date"] = pd.to_datetime(vision_df["capture_date"])
+    else:
+        vision_df = pd.DataFrame(vision_data)
+        vision_df["capture_date"] = pd.to_datetime(vision_df["capture_date"])
+        vision_df["actual_qty"]   = (
+            vision_df["material_name"].map(BBOX_TO_QTY) * vision_df["bbox_count"]
+        )
 
     tol = pd.Timedelta("7D")
     vc = pd.merge_asof(
@@ -133,7 +143,12 @@ def load_evms_data() -> pd.DataFrame:
     df["display_unit"] = df["material_name"].map(unit_label)
     return df
 
-df = load_evms_data()
+@st.cache_data
+def load_evms_data() -> pd.DataFrame:
+    return compute_evms()
+
+live_vision = st.session_state.get("live_vision_df", None)
+df = compute_evms(live_vision) if live_vision is not None else load_evms_data()
 
 # ============================================================
 # 사이드바 — 필터

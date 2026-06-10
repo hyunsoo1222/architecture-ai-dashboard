@@ -1,20 +1,20 @@
 [
   {
     "material_name": "철근",
-    "bbox_count": 94,
-    "confidence_avg": 0.923,
-    "actual_qty": 4700,
+    "bbox_count": 63,
+    "confidence_avg": 0.81,
+    "actual_qty": 3150,
     "unit": "kg",
-    "display_qty": 4.7,
+    "display_qty": 3.15,
     "display_unit": "톤"
   },
   {
     "material_name": "목재",
-    "bbox_count": 37,
-    "confidence_avg": 0.887,
-    "actual_qty": 37,
+    "bbox_count": 144,
+    "confidence_avg": 0.87,
+    "actual_qty": 144,
     "unit": "EA",
-    "display_qty": 37,
+    "display_qty": 144,
     "display_unit": "EA"
   }
 ]
