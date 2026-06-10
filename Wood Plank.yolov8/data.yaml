@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 1
+names: ['Wood-Plank']
+
+roboflow:
+  workspace: hyunsoos-workspace-stjrz
+  project: hyunsoos-workspace-stjrz
+  version: dataset
+  license: Private
+  url: https://app.roboflow.com/hyunsoos-workspace-stjrz/hyunsoos-workspace-stjrz/dataset

@@ -1,0 +1,23 @@
+# 모델 가중치 (용량 큼 - GitHub 100MB 제한)
+*.pt
+*.pth
+*.weights
+
+# 데이터셋 (이미지 수백 장 - 용량 초과)
+Steel.yolov8/
+datasets/
+runs/
+*.zip
+
+# 결과 파일
+*.png
+*.csv
+
+# Python
+__pycache__/
+*.pyc
+.env
+venv/
+
+# Claude 설정
+.claude/
