@@ -238,8 +238,8 @@ with st.sidebar:
 
     st.divider()
     st.markdown("#### 🔎 조회 필터")
-    wbs_options  = ["전체"] + sorted(df["wbs_code"].unique().tolist())
-    mat_options  = ["전체"] + sorted(df["material_name"].unique().tolist())
+    wbs_options  = ["전체"] + sorted(df["wbs_code"].dropna().unique().tolist())
+    mat_options  = ["전체"] + sorted(df["material_name"].dropna().unique().tolist())
     sel_wbs      = st.selectbox("공종(WBS) 선택", wbs_options)
     sel_material = st.selectbox("자재 선택", mat_options)
 
