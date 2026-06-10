@@ -541,7 +541,7 @@ with st.expander("📋 원시 데이터 테이블 보기"):
 
     st.dataframe(
         show_df.style
-               .applymap(color_negative, subset=["SV(원)","CV(원)"])
+               .map(color_negative, subset=["SV(원)","CV(원)"])
                .format({
                    "PV(원)": "{:,.0f}", "EV(원)": "{:,.0f}", "AC(원)": "{:,.0f}",
                    "SV(원)": "{:+,.0f}", "CV(원)": "{:+,.0f}",
