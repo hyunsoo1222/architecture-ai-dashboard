@@ -11,6 +11,7 @@ runs/
 
 # 결과 파일
 *.png
+!real_검증사진_결과2.png
 *.csv
 !demo_results.json
 

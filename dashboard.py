@@ -165,9 +165,16 @@ with st.sidebar:
 
         for i, img_file in enumerate(img_files):
             time.sleep(0.4)
-            img = Image.open(img_file)
-            img_cols[i % 4].image(img, caption=f"📷 {img_file.name}",
-                                   use_container_width=True)
+            # YOLO 결과 이미지가 있으면 우선 표시
+            result_img_path = Path(f"real_검증사진_결과2.png")
+            if result_img_path.exists():
+                img_cols[i % 4].image(str(result_img_path),
+                                       caption=f"🔍 AI 분석: {img_file.name}",
+                                       use_container_width=True)
+            else:
+                img = Image.open(img_file)
+                img_cols[i % 4].image(img, caption=f"📷 {img_file.name}",
+                                       use_container_width=True)
             progress.progress((i + 1) / len(img_files),
                                text=f"분석 중... ({i+1}/{len(img_files)})")
 
